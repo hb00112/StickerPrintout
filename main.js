@@ -2237,7 +2237,7 @@ function printSticker() {
                     font-size: 9pt;
                     position: absolute;
                     bottom: 12pt;
-                    left: 15pt;
+                    left: 20pt;
                     font-weight: 500;
                     color: #666;
                     z-index: 2;
