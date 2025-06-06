@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Print Format Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🖨️ Professional Print Manager</h1>
+            <p>Create and manage custom printing formats with precision</p>
+        </div>
+
+        <div class="main-content">
+           <div class="formats-section">
+    <div class="section-header">
+        <h2 class="section-title">Print Formats</h2>
+    </div>
+  <div class="formats-grid" id="formatsGrid">
+    <div class="format-card">
+        <div class="format-name">Envelope Format</div>
+        <div class="format-details">
+            <div class="format-detail">
+                <span><strong>Size:</strong></span>
+                <span>9.02 × 3.90 in (229 × 99 mm)</span>
+            </div>
+            <div class="format-detail">
+                <span><strong>Orientation:</strong></span>
+                <span>Landscape</span>
+            </div>
+        </div>
+        <div class="format-actions">
+           <button id="openPrintSection" class="btn-print" onclick="openPrintSection('envelope')">
+    Print Envelope
+</button>
+
+        </div>
+    </div>
+    <div class="format-card">
+        <div class="format-name">Parcel Sticker</div>
+        <div class="format-details">
+            <div class="format-detail">
+                <span><strong>Size:</strong></span>
+                <span>4.14 × 3.07 in (105 × 78 mm)</span>
+            </div>
+            <div class="format-detail">
+                <span><strong>Orientation:</strong></span>
+                <span>Portrait</span>
+            </div>
+        </div>
+        <div class="format-actions">
+           <button id="openStickerSection" class="btn-print" onclick="openPrintSection('sticker')">
+    Print Sticker
+</button>
+        </div>
+    </div>
+</div>
+</div>
+
+
+            <div class="stats-sidebar">
+                <div class="stats-card">
+                    <div class="stats-number" id="totalFormats">0</div>
+                    <div class="stats-label">Total Formats</div>
+                </div>
+                <div class="stats-card clickable" onclick="openImportModal()">
+                    <div class="stats-number">📁</div>
+                    <div class="stats-label">Import Data</div>
+                </div>
+                <div class="stats-card clickable" onclick="openPartyDataModal()">
+                    <div class="stats-number" id="partyCount">0</div>
+                    <div class="stats-label">Party Data</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="printSection" class="print-section" style="display: none;">
+    <div class="print-container">
+        <div class="party-selector">
+            <div class="search-container">
+                <input type="text" id="printPartySearch" placeholder="🔍 Search parties..." 
+                       oninput="filterPrintParties()">
+            </div>
+            <div id="printPartyList" class="party-list"></div>
+        </div>
+        <div class="print-preview">
+            <div id="printPreviewContent">
+                <div class="empty-preview">
+                    <h3>Kindly select a party name to print the design</h3>
+                    <p>Select a party from the left panel to generate the envelope</p>
+                </div>
+            </div>
+            <div id="printActions" class="print-actions" style="display: none;">
+                 <button onclick="openParcelModal()" class="print-action-btn" >📦 No. of Parcel</button>
+                <button class="btn-secondary" onclick="downloadPdf()">Download PDF</button>
+                <button class="btn-primary" onclick="printPdf()">Print</button>
+                <button class="btn-back" onclick="closePrintSection()">Back to Formats</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <!-- Modal -->
+    <div id="formatModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create New Print Format</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="formatName">Format Name</label>
+                        <input type="text" id="formatName" placeholder="e.g., A4 Document, Business Card, etc.">
+                    </div>
+                    
+
+                    <div class="form-group">
+                        <label>Paper Size (cm)</label>
+                        <div class="size-inputs">
+                            <input type="number" id="paperWidth" placeholder="Width" min="1" max="100" step="0.1">
+                            <input type="number" id="paperHeight" placeholder="Height" min="1" max="100" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Margins (cm)</label>
+                        <div class="margin-inputs">
+                            <input type="number" id="marginTop" placeholder="Top" min="0" max="10" step="0.1">
+                            <input type="number" id="marginBottom" placeholder="Bottom" min="0" max="10" step="0.1">
+                            <input type="number" id="marginLeft" placeholder="Left" min="0" max="10" step="0.1">
+                            <input type="number" id="marginRight" placeholder="Right" min="0" max="10" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Orientation</label>
+                        <div class="orientation-selector">
+                            <div class="orientation-option selected" data-orientation="portrait">
+                                📄 Portrait
+                            </div>
+                            <div class="orientation-option" data-orientation="landscape">
+                                📄 Landscape
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-section">
+                    <h3 class="preview-title">Live Preview</h3>
+                    <div class="paper-preview" id="paperPreview">
+                        <div class="paper-content" id="paperContent"></div>
+                    </div>
+                    <div class="preview-info">
+                        <h4>Format Details</h4>
+                        <div id="previewDetails">
+                            Enter format details to see preview
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveFormat()">Save Format</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Data Modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Import Excel Data</h2>
+                <span class="close" onclick="closeImportModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="excelFile">Select Excel File (.xlsx, .xls)</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="handleFileUpload(event)">
+                </div>
+                <div id="importPreview" style="display:none;">
+                    <h3>Preview Data</h3>
+                    <div id="previewTable"></div>
+                    <button class="btn-primary" onclick="confirmImport()">Import Data</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeImportModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Party Data Modal -->
+   <!-- Party Data Modal -->
+<div id="partyModal" class="modal" style="z-index: 1000;">
+    <div class="modal-content" style="width: 98vw; max-width: none; height: 95vh; margin: 2.5vh auto;">
+        <div class="modal-header" style="padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0;">
+            <h2 class="modal-title" style="margin: 0; color: white;">Party Data</h2>
+            <span class="close" onclick="closePartyModal()" style="color: white; font-size: 28px; font-weight: bold; cursor: pointer; float: right; line-height: 1;">&times;</span>
+        </div>
+        <div class="modal-body" style="height: calc(100% - 140px); overflow: hidden; padding: 20px;">
+            <div class="search-container" style="margin-bottom: 20px; width: 100%;">
+                <input type="text" id="partySearch" placeholder="🔍 Search parties by name..." 
+                       style="width: 100%; padding: 12px 15px; border: 2px solid #ddd; border-radius: 25px; font-size: 16px; box-sizing: border-box; outline: none; transition: all 0.3s ease;"
+                       oninput="filterParties()"
+                       onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 10px rgba(102, 126, 234, 0.3)'"
+                       onblur="this.style.borderColor='#ddd'; this.style.boxShadow='none'">
+            </div>
+            <div id="partyList" style="height: calc(100% - 60px); overflow-y: auto; width: 100%;"></div>
+        </div>
+        <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid #eee; text-align: right;">
+            <button class="btn-secondary" onclick="closePartyModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
+    </div>
+</div>
+
+    <!-- Party Details Modal -->
+    <div id="partyDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Party Details</h2>
+                <span class="close" onclick="closePartyDetailsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="partyName">Name</label>
+                    <input type="text" id="partyName">
+                </div>
+                <div class="form-group">
+                    <label for="partyCity">City</label>
+                    <input type="text" id="partyCity">
+                </div>
+                <div class="form-group">
+                    <label for="partyAddress1">Address 1</label>
+                    <input type="text" id="partyAddress1">
+                </div>
+                <div class="form-group">
+                    <label for="partyAddress2">Address 2</label>
+                    <input type="text" id="partyAddress2">
+                </div>
+                <div class="form-group">
+                    <label for="partyAddress3">Address 3</label>
+                    <input type="text" id="partyAddress3">
+                </div>
+                <div class="form-group">
+                    <label for="partyMobile">Mobile Number</label>
+                    <input type="text" id="partyMobile">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePartyDetailsModal()">Cancel</button>
+                <button class="btn-primary" onclick="savePartyDetails()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>
