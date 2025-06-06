@@ -2325,7 +2325,7 @@ function printSticker() {
                     <div class="parcel-circle" style="margin-top: ${layout.lineSpacing * 0.3}pt;">${layout.parcelNumber}P</div>` : ''}
 
                     <div class="from-text">
-                        FROM: HREENKAR CREATION - MAPUSA GOA (9422594814)
+                        FROM: HREENKAR CREATION - MAPUSA GOA (9422593814)
                     </div>
                 </div>
             </div>
