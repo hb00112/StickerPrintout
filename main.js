@@ -817,6 +817,11 @@ function closePartyDetailsModal() {
 let selectedPartyForPrint = null;
 let currentFormat = null;
 
+function openImportModal() {
+    document.getElementById('importModal').style.display = 'block';
+}
+
+
 function openPrintSection(formatType) {
     // Check if party data is available
     if (!partyData || partyData.length === 0) {
