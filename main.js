@@ -1905,7 +1905,7 @@ function generateStickerPreview(party) {
                 color: #666;
                 z-index: 2;
             ">
-                FROM: HREENKAR CREATION - MAPUSA GOA (9422594814)
+                FROM: HREENKAR CREATION - MAPUSA GOA (9422593814)
             </div>
         </div>
     `;
