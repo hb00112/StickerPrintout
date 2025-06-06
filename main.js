@@ -177,7 +177,9 @@ function saveParcelNumber() {
     }
 }
 
-
+function openImportModal() {
+    document.getElementById('importModal').style.display = 'block';
+}
 
 // Helper function to check if user is on homescreen
 function isOnHomescreen() {
@@ -816,11 +818,6 @@ function closePartyDetailsModal() {
 // Print Section Functions
 let selectedPartyForPrint = null;
 let currentFormat = null;
-
-function openImportModal() {
-    document.getElementById('importModal').style.display = 'block';
-}
-
 
 function openPrintSection(formatType) {
     // Check if party data is available
@@ -1640,7 +1637,6 @@ async function savePartyDetails() {
     }
 }
 
-
 //sticker
 function generateStickerPreview(party) {
     const previewContent = document.getElementById('printPreviewContent');
@@ -1648,6 +1644,8 @@ function generateStickerPreview(party) {
     // Convert dimensions from inches to points (1 inch = 72 points)
     const widthInPoints = 4.14 * 72;
     const heightInPoints = 3.07 * 72;
+    
+    const parcelNumber = stickerParcelNumbers[party.id] || 0;
     
     // Split the name into two parts if it contains a space
     const nameParts = (party.name || '').split(' ');
@@ -1666,38 +1664,69 @@ function generateStickerPreview(party) {
     // Calculate dynamic font sizes based on available space
     const reservedBottomSpace = 35; // Space for "FROM" section
     const padding = 30; // Total padding (top + bottom)
-    const availableHeight = heightInPoints - reservedBottomSpace - padding;
+    let availableHeight = heightInPoints - reservedBottomSpace - padding;
     
-    // Determine number of content lines
+    // Determine number of content lines - IGNORE PARCEL FOR HEIGHT CALCULATION
     const nameLines = line2 ? 2 : 1;
     const cityLines = party.city ? 1 : 0;
-    const totalContentLines = nameLines + cityLines;
+    const hasParcel = parcelNumber > 0;
+    
+    // Layout determination
+    let layoutType = 'normal'; // normal, cityWithParcel, parcelBelowCity
+    let cityAlignLeft = false;
+    let parcelBelowCity = false;
+    
+    if (hasParcel && cityLines > 0) {
+        // Check if there's space to put parcel next to city
+        const cityWidth = (party.city.length * 12); // Approximate width
+        const parcelWidth = 60; // Approximate parcel circle width
+        const availableWidth = widthInPoints - 40; // Account for padding
+        
+        if (cityWidth + parcelWidth + 40 < availableWidth) {
+            layoutType = 'cityWithParcel';
+            cityAlignLeft = true;
+        } else {
+            layoutType = 'parcelBelowCity';
+            parcelBelowCity = true;
+        }
+    } else if (hasParcel && cityLines === 0) {
+        layoutType = 'parcelBelowName';
+        parcelBelowCity = true;
+    }
+    
+    // Calculate spacing based on content lines ONLY (ignore parcel for height calculations)
+    let totalContentLines = nameLines + cityLines;
+    // REMOVED: No height adjustment for parcel
+    // if (parcelBelowCity) {
+    //     totalContentLines += 0.8; // Parcel takes partial line space
+    //     availableHeight -= 15; // Reduce available height for tighter spacing
+    // }
     
     // Calculate optimal spacing
     let nameFontSize, cityFontSize, lineSpacing;
     
-    if (totalContentLines === 1) {
+    if (totalContentLines <= 1) {
         // Only single name line
         nameFontSize = Math.min(60, availableHeight * 0.7);
         cityFontSize = 0;
-        lineSpacing = 0;
-    } else if (totalContentLines === 2) {
-        if (nameLines === 2) {
+        lineSpacing = availableHeight * 0.1;
+    } else if (totalContentLines <= 2) {
+        if (nameLines === 2 && cityLines === 0) {
             // Two name lines, no city
             nameFontSize = Math.min(45, availableHeight * 0.4);
             cityFontSize = 0;
-            lineSpacing = availableHeight * 0.1;
+            lineSpacing = availableHeight * 0.1; // CONSISTENT SPACING
         } else {
             // One name line, one city line
             nameFontSize = Math.min(50, availableHeight * 0.55);
             cityFontSize = Math.min(35, availableHeight * 0.35);
             lineSpacing = availableHeight * 0.1;
         }
-    } else if (totalContentLines === 3) {
-        // Two name lines + one city line
+    } else {
+        // Two name lines + city
         nameFontSize = Math.min(40, availableHeight * 0.35);
         cityFontSize = Math.min(30, availableHeight * 0.25);
-        lineSpacing = availableHeight * 0.08;
+        lineSpacing = availableHeight * 0.08; // CONSISTENT SPACING
     }
     
     // Calculate character-based width constraints
@@ -1711,14 +1740,31 @@ function generateStickerPreview(party) {
         nameFontSize = Math.min(nameFontSize, maxNameWidth);
     }
     
-    if (maxCityChars > 0) {
+    if (maxCityChars > 0 && !cityAlignLeft) {
         const maxCityWidth = availableWidth / maxCityChars * 1.2;
+        cityFontSize = Math.min(cityFontSize, maxCityWidth);
+    } else if (maxCityChars > 0 && cityAlignLeft) {
+        const maxCityWidth = (availableWidth - 80) / maxCityChars * 1.2; // Leave space for parcel
         cityFontSize = Math.min(cityFontSize, maxCityWidth);
     }
     
     // Ensure minimum readable sizes
     nameFontSize = Math.max(nameFontSize, 24);
     cityFontSize = Math.max(cityFontSize, 18);
+    
+    // Calculate parcel size based on available space
+    let parcelSize = 50; // Increased base size
+    if (hasParcel) {
+        if (layoutType === 'cityWithParcel') {
+            parcelSize = Math.min(60, cityFontSize * 1.8);
+        } else if (parcelBelowCity) {
+            parcelSize = Math.min(70, availableHeight * 0.25);
+        }
+        parcelSize = Math.max(parcelSize, 40); // Increased minimum size
+    }
+    
+    // Calculate parcel text font size - INCREASED FROM 0.35 TO 0.5
+    const parcelTextSize = Math.max(parcelSize * 0.5, 16);
     
     let stickerHTML = `
         <div class="sticker-design" style="
@@ -1790,18 +1836,64 @@ function generateStickerPreview(party) {
                 position: relative;
             ">${line2}</div>` : ''}
             
-            <!-- City -->
+            <!-- City and Parcel Container -->
             ${party.city ? `
             <div style="
-                font-size: ${cityFontSize}pt;
-                text-align: center;
-                color: #555;
-                font-weight: 500;
-                word-wrap: break-word;
-                max-width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: ${cityAlignLeft ? 'center' : 'center'};
+                width: 100%;
+                margin-bottom: 0pt;
                 z-index: 2;
                 position: relative;
-            ">${party.city}</div>` : ''}
+                gap: 15pt;
+            ">
+                <!-- City -->
+                <div style="
+                    font-size: ${cityFontSize}pt;
+                    text-align: center;
+                    color: #555;
+                    font-weight: 500;
+                    word-wrap: break-word;
+                    ${cityAlignLeft ? 'flex-shrink: 0;' : 'max-width: 100%;'}
+                ">${party.city}</div>
+                
+                <!-- Parcel next to city -->
+                ${hasParcel && layoutType === 'cityWithParcel' ? `
+                <div style="
+                    width: ${parcelSize}pt;
+                    height: ${parcelSize}pt;
+                    background: transparent;
+                    border: 3pt solid #dc3545;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #dc3545;
+                    font-weight: bold;
+                    font-size: ${parcelTextSize}pt;
+                    flex-shrink: 0;
+                ">${parcelNumber}P</div>` : ''}
+            </div>` : ''}
+            
+            <!-- Parcel below city or name - POSITIONED ABSOLUTELY TO ALLOW OVERLAP -->
+            ${hasParcel && parcelBelowCity ? `
+            <div style="
+                width: ${parcelSize}pt;
+                height: ${parcelSize}pt;
+                background: transparent;
+                border: 3pt solid #dc3545;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #dc3545;
+                font-weight: bold;
+                font-size: ${parcelTextSize}pt;
+                z-index: 2;
+                position: relative;
+                margin-top: ${lineSpacing * 0.3}pt;
+            ">${parcelNumber}P</div>` : ''}
             
             <!-- FROM section at bottom left -->
             <div style="
@@ -1823,13 +1915,16 @@ function generateStickerPreview(party) {
     // Optional: Add a debug info comment for testing
     console.log(`Sticker dimensions: ${widthInPoints}pt x ${heightInPoints}pt`);
     console.log(`Name font size: ${nameFontSize}pt, City font size: ${cityFontSize}pt`);
-    console.log(`Available height: ${availableHeight}pt, Content lines: ${totalContentLines}`);
+    console.log(`Available height: ${availableHeight}pt, Layout: ${layoutType}`);
+    console.log(`Parcel number: ${parcelNumber}, Size: ${parcelSize}pt, Text size: ${parcelTextSize}pt`);
 }
 
 // Helper function to calculate font sizes and layout (reused by PDF and print functions)
 function calculateStickerLayout(party) {
     const widthInPoints = 4.14 * 72;
     const heightInPoints = 3.07 * 72;
+    
+    const parcelNumber = stickerParcelNumbers[party.id] || 0;
     
     // Split the name into two parts if it contains a space
     const nameParts = (party.name || '').split(' ');
@@ -1845,32 +1940,62 @@ function calculateStickerLayout(party) {
     
     const reservedBottomSpace = 35;
     const padding = 30;
-    const availableHeight = heightInPoints - reservedBottomSpace - padding;
+    let availableHeight = heightInPoints - reservedBottomSpace - padding;
     
     const nameLines = line2 ? 2 : 1;
     const cityLines = party.city ? 1 : 0;
-    const totalContentLines = nameLines + cityLines;
+    const hasParcel = parcelNumber > 0;
+    
+    // Layout determination
+    let layoutType = 'normal';
+    let cityAlignLeft = false;
+    let parcelBelowCity = false;
+    
+    if (hasParcel && cityLines > 0) {
+        const cityWidth = (party.city.length * 12);
+        const parcelWidth = 60;
+        const availableWidth = widthInPoints - 40;
+        
+        if (cityWidth + parcelWidth + 40 < availableWidth) {
+            layoutType = 'cityWithParcel';
+            cityAlignLeft = true;
+        } else {
+            layoutType = 'parcelBelowCity';
+            parcelBelowCity = true;
+        }
+    } else if (hasParcel && cityLines === 0) {
+        layoutType = 'parcelBelowName';
+        parcelBelowCity = true;
+    }
+    
+    // REMOVED HEIGHT ADJUSTMENT FOR PARCEL
+    let totalContentLines = nameLines + cityLines;
+    // REMOVED: No height adjustment for parcel
+    // if (parcelBelowCity) {
+    //     totalContentLines += 0.8;
+    //     availableHeight -= 15;
+    // }
     
     let nameFontSize, cityFontSize, lineSpacing;
     
-    if (totalContentLines === 1) {
+    if (totalContentLines <= 1) {
         nameFontSize = Math.min(60, availableHeight * 0.7);
         cityFontSize = 0;
-        lineSpacing = 0;
-    } else if (totalContentLines === 2) {
-        if (nameLines === 2) {
+        lineSpacing = availableHeight * 0.1;
+    } else if (totalContentLines <= 2) {
+        if (nameLines === 2 && cityLines === 0) {
             nameFontSize = Math.min(45, availableHeight * 0.4);
             cityFontSize = 0;
-            lineSpacing = availableHeight * 0.1;
+            lineSpacing = availableHeight * 0.1; // CONSISTENT SPACING
         } else {
             nameFontSize = Math.min(50, availableHeight * 0.55);
             cityFontSize = Math.min(35, availableHeight * 0.35);
             lineSpacing = availableHeight * 0.1;
         }
-    } else if (totalContentLines === 3) {
+    } else {
         nameFontSize = Math.min(40, availableHeight * 0.35);
         cityFontSize = Math.min(30, availableHeight * 0.25);
-        lineSpacing = availableHeight * 0.08;
+        lineSpacing = availableHeight * 0.08; // CONSISTENT SPACING
     }
     
     // Width constraints
@@ -1883,13 +2008,30 @@ function calculateStickerLayout(party) {
         nameFontSize = Math.min(nameFontSize, maxNameWidth);
     }
     
-    if (maxCityChars > 0) {
+    if (maxCityChars > 0 && !cityAlignLeft) {
         const maxCityWidth = availableWidth / maxCityChars * 1.2;
+        cityFontSize = Math.min(cityFontSize, maxCityWidth);
+    } else if (maxCityChars > 0 && cityAlignLeft) {
+        const maxCityWidth = (availableWidth - 80) / maxCityChars * 1.2;
         cityFontSize = Math.min(cityFontSize, maxCityWidth);
     }
     
     nameFontSize = Math.max(nameFontSize, 24);
     cityFontSize = Math.max(cityFontSize, 18);
+    
+    // Calculate parcel size
+    let parcelSize = 50; // Increased base size
+    if (hasParcel) {
+        if (layoutType === 'cityWithParcel') {
+            parcelSize = Math.min(60, cityFontSize * 1.8);
+        } else if (parcelBelowCity) {
+            parcelSize = Math.min(70, availableHeight * 0.25);
+        }
+        parcelSize = Math.max(parcelSize, 40); // Increased minimum size
+    }
+    
+    // Calculate parcel text font size - INCREASED FROM 0.35 TO 0.5
+    const parcelTextSize = Math.max(parcelSize * 0.5, 16);
     
     return {
         widthInPoints,
@@ -1901,7 +2043,14 @@ function calculateStickerLayout(party) {
         lineSpacing,
         nameLines,
         cityLines,
-        reservedBottomSpace
+        reservedBottomSpace,
+        parcelNumber,
+        hasParcel,
+        layoutType,
+        cityAlignLeft,
+        parcelBelowCity,
+        parcelSize,
+        parcelTextSize
     };
 }
 
@@ -1910,7 +2059,6 @@ async function downloadStickerPdf() {
     
     const { jsPDF } = window.jspdf;
     const layout = calculateStickerLayout(selectedPartyForPrint);
-        const parcelNumber = stickerParcelNumbers[selectedPartyForPrint.id] || 0;
     
     const doc = new jsPDF({
         orientation: 'portrait',
@@ -1918,30 +2066,22 @@ async function downloadStickerPdf() {
         format: [layout.widthInPoints, layout.heightInPoints]
     });
     
-    // Add logo image first (background)
-    try {
-        // You might need to convert the image to base64 or load it differently for PDF
-        // For now, we'll add a placeholder comment
-        // doc.addImage('logo-base64-string', 'PNG', centerX, centerY, logoWidth, logoHeight);
-    } catch (error) {
-        console.log('Logo could not be added to PDF');
-    }
-    
-    // Set font
-    doc.setFont('helvetica', 'bold');
-    
-    // Calculate vertical positioning to center content
+    // Calculate vertical positioning to center content (CONSISTENT POSITIONING)
     const availableHeight = layout.heightInPoints - layout.reservedBottomSpace - 30;
-    const totalContentLines = layout.nameLines + layout.cityLines;
-    let startY;
+    let totalContentLines = layout.nameLines + layout.cityLines;
+    // REMOVED PARCEL HEIGHT ADJUSTMENT
     
-    if (totalContentLines === 1) {
+    let startY;
+    if (totalContentLines <= 1) {
         startY = (availableHeight / 2) + 15 + (layout.nameFontSize / 3);
-    } else if (totalContentLines === 2) {
+    } else if (totalContentLines <= 2) {
         startY = (availableHeight / 2) + 15 - (layout.lineSpacing / 2);
     } else {
         startY = (availableHeight / 2) + 15 - layout.lineSpacing;
     }
+    
+    // Set font
+    doc.setFont('helvetica', 'bold');
     
     // Name Line 1
     doc.setFontSize(layout.nameFontSize);
@@ -1955,12 +2095,59 @@ async function downloadStickerPdf() {
         doc.text(layout.line2, layout.widthInPoints / 2, currentY, { align: 'center' });
     }
     
-    // City
+    // City and Parcel
     if (selectedPartyForPrint.city) {
         currentY += (layout.line2 ? layout.nameFontSize : layout.nameFontSize) + (layout.lineSpacing * 1.5);
         doc.setFontSize(layout.cityFontSize);
         doc.setFont('helvetica', 'normal');
-        doc.text(selectedPartyForPrint.city, layout.widthInPoints / 2, currentY, { align: 'center' });
+        
+        if (layout.layoutType === 'cityWithParcel' && layout.hasParcel) {
+            // City aligned left, parcel on right
+            const centerX = layout.widthInPoints / 2;
+            const cityWidth = doc.getTextWidth(selectedPartyForPrint.city);
+            const totalWidth = cityWidth + layout.parcelSize + 15;
+            const startX = centerX - (totalWidth / 2);
+            
+            // Draw city
+            doc.text(selectedPartyForPrint.city, startX, currentY);
+            
+            // Draw parcel circle
+            const parcelX = startX + cityWidth + 15 + (layout.parcelSize / 2);
+            const parcelY = currentY - (layout.parcelSize / 3);
+            
+            doc.setDrawColor(220, 53, 69); // Red border
+            doc.setLineWidth(3);
+            doc.circle(parcelX, parcelY, layout.parcelSize / 2, 'S'); // S for stroke only
+            
+            // Draw parcel text with increased font size
+            doc.setTextColor(220, 53, 69); // Red text
+            doc.setFontSize(layout.parcelTextSize);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${layout.parcelNumber}P`, parcelX, parcelY + 2, { align: 'center' });
+            doc.setTextColor(0, 0, 0); // Reset to black
+        } else {
+            // Normal city placement
+            doc.text(selectedPartyForPrint.city, layout.widthInPoints / 2, currentY, { align: 'center' });
+        }
+    }
+    
+    // Parcel below city or name - REDUCED SPACING TO ALLOW OVERLAP
+    if (layout.hasParcel && layout.parcelBelowCity) {
+        currentY += (selectedPartyForPrint.city ? layout.cityFontSize : 0) + (layout.lineSpacing * 0.8); // REDUCED FROM 1.5 TO 0.8
+        
+        const parcelX = layout.widthInPoints / 2;
+        const parcelY = currentY;
+        
+        doc.setDrawColor(220, 53, 69); // Red border
+        doc.setLineWidth(3);
+        doc.circle(parcelX, parcelY, layout.parcelSize / 2, 'S'); // S for stroke only
+        
+        // Draw parcel text with increased font size
+        doc.setTextColor(220, 53, 69); // Red text
+        doc.setFontSize(layout.parcelTextSize);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${layout.parcelNumber}P`, parcelX, parcelY + 2, { align: 'center' });
+        doc.setTextColor(0, 0, 0); // Reset to black
     }
     
     // FROM section at bottom left
@@ -1977,12 +2164,10 @@ function printSticker() {
     if (!selectedPartyForPrint) return;
 
     const layout = calculateStickerLayout(selectedPartyForPrint);
-    const parcelNumber = stickerParcelNumbers[selectedPartyForPrint.id] || 0;
 
     const A4_LANDSCAPE_HEIGHT = 595.28; // A4 Landscape height in pt
     const STICKER_HEIGHT = layout.heightInPoints;
     const TOP_OFFSET = (A4_LANDSCAPE_HEIGHT - layout.heightInPoints) / 2 - 14.17;
-
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
@@ -2057,6 +2242,31 @@ function printSticker() {
                     color: #666;
                     z-index: 2;
                 }
+
+                .city-parcel-container {
+                    display: flex;
+                    align-items: center;
+                    justify-content: ${layout.cityAlignLeft ? 'center' : 'center'};
+                    width: 100%;
+                    gap: 15pt;
+                    z-index: 2;
+                    position: relative;
+                }
+
+                .parcel-circle {
+                    width: ${layout.parcelSize}pt;
+                    height: ${layout.parcelSize}pt;
+                    background: transparent;
+                    border: 3pt solid #dc3545;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #dc3545;
+                    font-weight: bold;
+                    font-size: ${layout.parcelTextSize}pt;
+                    flex-shrink: 0;
+                }
             </style>
         </head>
         <body>
@@ -2097,16 +2307,22 @@ function printSticker() {
                     ">${layout.line2}</div>` : ''}
 
                     ${selectedPartyForPrint.city ? `
-                    <div style="
-                        font-size: ${layout.cityFontSize}pt;
-                        text-align: center;
-                        color: #555;
-                        font-weight: 500;
-                        word-wrap: break-word;
-                        max-width: 100%;
-                        z-index: 2;
-                        position: relative;
-                    ">${selectedPartyForPrint.city}</div>` : ''}
+                    <div class="city-parcel-container" style="margin-bottom: 0pt;">
+                        <div style="
+                            font-size: ${layout.cityFontSize}pt;
+                            text-align: center;
+                            color: #555;
+                            font-weight: 500;
+                            word-wrap: break-word;
+                            ${layout.cityAlignLeft ? 'flex-shrink: 0;' : 'max-width: 100%;'}
+                        ">${selectedPartyForPrint.city}</div>
+                        
+                        ${layout.hasParcel && layout.layoutType === 'cityWithParcel' ? `
+                        <div class="parcel-circle">${layout.parcelNumber}P</div>` : ''}
+                    </div>` : ''}
+
+                    ${layout.hasParcel && layout.parcelBelowCity ? `
+                    <div class="parcel-circle" style="margin-top: ${layout.lineSpacing * 0.3}pt;">${layout.parcelNumber}P</div>` : ''}
 
                     <div class="from-text">
                         FROM: HREENKAR CREATION - MAPUSA GOA (9422594814)
