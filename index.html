@@ -108,7 +108,45 @@
         </div>
     </div>
 </div>
-
+<!-- New Party Modal -->
+<div id="newPartyModal"  style="z-index: 1002; display: none;"class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Add New Party</h2>
+            <span class="close" onclick="closeNewPartyModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="newPartyName">Name*</label>
+                <input type="text" id="newPartyName" placeholder="Enter party name" required>
+            </div>
+            <div class="form-group">
+                <label for="newPartyCity">City*</label>
+                <input type="text" id="newPartyCity" placeholder="Enter city" required>
+            </div>
+            <div class="form-group">
+                <label for="newPartyAddress1">Address 1</label>
+                <input type="text" id="newPartyAddress1" placeholder="Enter address line 1">
+            </div>
+            <div class="form-group">
+                <label for="newPartyAddress2">Address 2</label>
+                <input type="text" id="newPartyAddress2" placeholder="Enter address line 2">
+            </div>
+            <div class="form-group">
+                <label for="newPartyAddress3">Address 3</label>
+                <input type="text" id="newPartyAddress3" placeholder="Enter address line 3">
+            </div>
+            <div class="form-group">
+                <label for="newPartyMobile">Mobile Number</label>
+                <input type="text" id="newPartyMobile" placeholder="Enter mobile number">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeNewPartyModal()">Cancel</button>
+            <button class="btn-primary" onclick="saveNewParty()">Save Party</button>
+        </div>
+    </div>
+</div>
 
     <!-- Modal -->
     <div id="formatModal" class="modal">
@@ -202,12 +240,18 @@
 
     <!-- Party Data Modal -->
    <!-- Party Data Modal -->
-<div id="partyModal" class="modal" style="z-index: 1000;">
+<div id="partyModal" class="modal" style="z-index: 1001;display: none;">
     <div class="modal-content" style="width: 98vw; max-width: none; height: 95vh; margin: 2.5vh auto;">
-        <div class="modal-header" style="padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0;">
-            <h2 class="modal-title" style="margin: 0; color: white;">Party Data</h2>
-            <span class="close" onclick="closePartyModal()" style="color: white; font-size: 28px; font-weight: bold; cursor: pointer; float: right; line-height: 1;">&times;</span>
-        </div>
+        <!-- Update the modal-header div in the partyModal -->
+<div class="modal-header" style="padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px 8px 0 0;">
+    <h2 class="modal-title" style="margin: 0; color: white;">Party Data</h2>
+    <div style="display: flex; gap: 10px;">
+        <button onclick="openNewPartyModal()" style="padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 18px;">+</span> New Party
+        </button>
+        <span class="close" onclick="closePartyModal()" style="color: white; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1;">&times;</span>
+    </div>
+</div>
         <div class="modal-body" style="height: calc(100% - 140px); overflow: hidden; padding: 20px;">
             <div class="search-container" style="margin-bottom: 20px; width: 100%;">
                 <input type="text" id="partySearch" placeholder="🔍 Search parties by name..." 
