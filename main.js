@@ -1636,7 +1636,64 @@ async function savePartyDetails() {
         alert('Error updating party details: ' + error.message);
     }
 }
+function openNewPartyModal() {
+    // Clear all fields
+    document.getElementById('newPartyName').value = '';
+    document.getElementById('newPartyCity').value = '';
+    document.getElementById('newPartyAddress1').value = '';
+    document.getElementById('newPartyAddress2').value = '';
+    document.getElementById('newPartyAddress3').value = '';
+    document.getElementById('newPartyMobile').value = '';
+    
+    // Open the modal
+    document.getElementById('newPartyModal').style.display = 'block';
+}
 
+function closeNewPartyModal() {
+    document.getElementById('newPartyModal').style.display = 'none';
+}
+
+async function saveNewParty() {
+    const name = document.getElementById('newPartyName').value.trim();
+    const city = document.getElementById('newPartyCity').value.trim();
+    const address1 = document.getElementById('newPartyAddress1').value.trim();
+    const address2 = document.getElementById('newPartyAddress2').value.trim();
+    const address3 = document.getElementById('newPartyAddress3').value.trim();
+    const mobile = document.getElementById('newPartyMobile').value.trim();
+
+    // Validate required fields
+    if (!name || !city) {
+        showNotification('Name and City are required fields', 'error');
+        return;
+    }
+
+    try {
+        const newParty = {
+            name,
+            city,
+            address1,
+            address2,
+            address3,
+            mobile,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        if (database) {
+            const newRef = database.ref('partyData').push();
+            await newRef.set(newParty);
+            
+            showNotification('Party added successfully!');
+            closeNewPartyModal();
+            
+            // Update print button state if this is the first party
+            updatePrintButtonState();
+        }
+    } catch (error) {
+        console.error('Error adding new party:', error);
+        showNotification('Error adding party: ' + error.message, 'error');
+    }
+}
 //sticker
 function generateStickerPreview(party) {
     const previewContent = document.getElementById('printPreviewContent');
@@ -2284,7 +2341,7 @@ function printSticker() {
                         font-weight: bold;
                         text-align: center;
                         color: #333;
-                        line-height: 1.1;
+                        line-height: 1;
                         margin-bottom: ${layout.line2 ? layout.lineSpacing : (layout.cityLines > 0 ? layout.lineSpacing * 1.5 : 0)}pt;
                         word-wrap: break-word;
                         max-width: 100%;
@@ -2298,7 +2355,7 @@ function printSticker() {
                         font-weight: bold;
                         text-align: center;
                         color: #333;
-                        line-height: 1.1;
+                        line-height: 1;
                         margin-bottom: ${layout.cityLines > 0 ? layout.lineSpacing * 1.5 : 0}pt;
                         word-wrap: break-word;
                         max-width: 100%;
