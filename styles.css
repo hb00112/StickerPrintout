@@ -47,6 +47,120 @@ body {
     color: white;
 }
 
+.btn-print.enamor {
+    background-color: #ff6b6b;
+}
+
+.btn-print.enamor:hover {
+    background-color: #ff8787;
+}
+
+
+/* Enamor Info Modal Styles */
+.enamor-info-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.enamor-info-modal.show {
+    opacity: 1;
+}
+
+.enamor-info-modal-content {
+    background-color: white;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.enamor-info-modal-header {
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #4a6baf 0%, #2c3e50 100%);
+    color: white;
+}
+
+.enamor-info-modal-body {
+    padding: 20px;
+}
+
+.enamor-party-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #333;
+    text-align: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+.enamor-input-group {
+    margin-bottom: 15px;
+}
+
+.enamor-input-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+}
+
+.enamor-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.enamor-info-modal-footer {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background-color: #f8f9fa;
+}
+
+.enamor-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.enamor-btn-save {
+    background-color: #28a745;
+    color: white;
+}
+
+.enamor-btn-save:hover {
+    background-color: #218838;
+}
+
+.enamor-btn-cancel {
+    background-color: #dc3545;
+    color: white;
+}
+
+.enamor-btn-cancel:hover {
+    background-color: #c82333;
+}
+
 .header h1 {
     font-size: 3rem;
     font-weight: 700;
