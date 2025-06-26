@@ -23,6 +23,7 @@ let printSearchTerm = '';
 let envelopeParcelNumbers = {};  // Stores parcel counts for envelopes
 let stickerParcelNumbers = {};   // Stores parcel counts for stickers
 let currentParcelContext = 'envelope'; // Tracks which context we're setting parcels for
+const FORMAT_ENAMOR_STICKER = 'enamor-sticker';
 
 
 try {
@@ -49,6 +50,77 @@ let formats = [];
 let currentEditingId = null;
 
 let isInitialized = false;
+
+// Global variables for Enamor info
+let enamorBillNumbers = {};
+let enamorTotalPcs = {};
+
+function openEnamorInfoModal() {
+    if (!selectedPartyForPrint) {
+        showNotification('Please select a party first', 'error');
+        return;
+    }
+    
+    const modal = document.getElementById('enamorInfoModal');
+    const partyNameEl = document.getElementById('enamorPartyName');
+    const billInputEl = document.getElementById('enamorBillNumber');
+    const pcsInputEl = document.getElementById('enamorTotalPcs');
+    
+    if (modal && partyNameEl && billInputEl && pcsInputEl) {
+        partyNameEl.textContent = `${selectedPartyForPrint.name} - ${selectedPartyForPrint.city}`;
+        
+        // Set current values
+        billInputEl.value = enamorBillNumbers[selectedPartyForPrint.id] ? 
+            enamorBillNumbers[selectedPartyForPrint.id].replace('K', '') : '';
+        pcsInputEl.value = enamorTotalPcs[selectedPartyForPrint.id] || '';
+        
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+        setTimeout(() => billInputEl.focus(), 300);
+    }
+}
+
+function closeEnamorInfoModal() {
+    const modal = document.getElementById('enamorInfoModal');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+}
+
+function saveEnamorInfo() {
+    if (!selectedPartyForPrint) return;
+    
+    const billInputEl = document.getElementById('enamorBillNumber');
+    const pcsInputEl = document.getElementById('enamorTotalPcs');
+    
+    if (!billInputEl || !pcsInputEl) return;
+    
+    const billNumber = billInputEl.value.trim();
+    const totalPcs = pcsInputEl.value.trim();
+    
+    // Update bill number (empty string will remove it)
+    if (billNumber) {
+        enamorBillNumbers[selectedPartyForPrint.id] = 'K' + billNumber;
+    } else {
+        delete enamorBillNumbers[selectedPartyForPrint.id];
+    }
+    
+    // Update total pieces (empty string will remove it)
+    if (totalPcs) {
+        enamorTotalPcs[selectedPartyForPrint.id] = totalPcs + 'PCS';
+    } else {
+        delete enamorTotalPcs[selectedPartyForPrint.id];
+    }
+    
+    showNotification('Additional information updated for Enamor sticker');
+    closeEnamorInfoModal();
+    
+    // Regenerate preview
+    generateEnamorStickerPreview(selectedPartyForPrint);
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
@@ -231,31 +303,36 @@ function setupEventListeners() {
     // Import functionality
     addListener('importExcel', 'change', handleFileUpload);
     addListener('confirmImport', 'click', confirmImport);
-    addListener('cancelImport', 'click', function() {
-        closeImportModal(); // Use the updated function instead of direct style change
-    });
+    addListener('cancelImport', 'click', closeImportModal);
     addListener('removeDuplicates', 'click', removeDuplicateParties);
     
-    // Print section events - Updated to handle both buttons
-    const printBtns = document.querySelectorAll('.btn-print');
-    if (printBtns) {
-        printBtns.forEach(btn => {
-            // Remove any existing onclick attribute to prevent conflicts
-            btn.removeAttribute('onclick');
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                if (!btn.disabled) {
-                    const formatType = btn.id.includes('Sticker') ? 'sticker' : 'envelope';
-                    openPrintSection(formatType);
-                }
-            });
+    // Print section events - Handle all three format buttons
+    const printButtons = [
+        { id: 'openEnvelopeSection', format: 'envelope' },
+        { id: 'openStickerSection', format: 'sticker' },
+        { id: 'openEnamorStickerSection', format: 'enamor-sticker' }
+    ];
+
+    printButtons.forEach(button => {
+        addListener(button.id, 'click', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById(button.id);
+            if (btn && !btn.disabled) {
+                openPrintSection(button.format);
+            }
         });
-    }
+    });
     
+    // Print section controls
     addListener('closePrintSection', 'click', closePrintSection);
     addListener('printPartySearch', 'input', filterPrintParties);
     addListener('downloadPdf', 'click', downloadPdf);
     addListener('printPdf', 'click', printPdf);
+    
+    // Parcel modal events
+    addListener('openParcelModal', 'click', openParcelModal);
+    addListener('saveParcelNumber', 'click', saveParcelNumber);
+    addListener('cancelParcelModal', 'click', closeParcelModal);
 }
 function closeImportModal() {
     document.getElementById('importModal').style.display = 'none';
@@ -833,7 +910,12 @@ function openPrintSection(formatType) {
     // Update the print section title based on format
     const printTitle = document.getElementById('printSectionTitle');
     if (printTitle) {
-        printTitle.textContent = formatType === 'envelope' ? 'Print Envelope' : 'Print Sticker';
+        const formatNames = {
+            'envelope': 'Print Envelope',
+            'sticker': 'Print Parcel Sticker',
+            'enamor-sticker': 'Print Enamor Sticker'
+        };
+        printTitle.textContent = formatNames[formatType] || 'Print';
     }
     
     // Hide connection status when entering print section
@@ -846,7 +928,6 @@ function openPrintSection(formatType) {
     
     loadPrintParties();
 }
-
 
 function closePrintSection() {
     document.getElementById('printSection').style.display = 'none';
@@ -975,17 +1056,22 @@ function selectPartyForPrint(partyId) {
     }
     
     // Generate preview based on current format
-    if (currentFormat === 'envelope') {
-        generateEnvelopePreview(party);
-    } else if (currentFormat === 'sticker') {
-        generateStickerPreview(party);
+    switch(currentFormat) {
+        case 'envelope':
+            generateEnvelopePreview(party);
+            break;
+        case 'sticker':
+            generateStickerPreview(party);
+            break;
+        case 'enamor-sticker':
+            generateEnamorStickerPreview(party);
+            break;
     }
     
     // Show print actions
     const printActions = document.getElementById('printActions');
     if (printActions) {
         printActions.style.display = 'flex';
-        
     }
 }
 
@@ -1360,22 +1446,35 @@ async function downloadEnvelopePdf() {
 function downloadPdf() {
     if (!selectedPartyForPrint) return;
     
-    if (currentFormat === 'envelope') {
-        downloadEnvelopePdf();
-    } else if (currentFormat === 'sticker') {
-        downloadStickerPdf();
+    switch(currentFormat) {
+        case 'envelope':
+            downloadEnvelopePdf();
+            break;
+        case 'sticker':
+            downloadStickerPdf();
+            break;
+        case 'enamor-sticker':
+            downloadEnamorStickerPdf();
+            break;
     }
 }
 
 function printPdf() {
     if (!selectedPartyForPrint) return;
     
-    if (currentFormat === 'envelope') {
-        printEnvelope();
-    } else if (currentFormat === 'sticker') {
-        printSticker();
+    switch(currentFormat) {
+        case 'envelope':
+            printEnvelope();
+            break;
+        case 'sticker':
+            printSticker();
+            break;
+        case 'enamor-sticker':
+            printEnamorSticker();
+            break;
     }
 }
+
 
 
 // Updated printPdf function to include parcel number
@@ -2402,4 +2501,584 @@ function printSticker() {
         </html>
     `);
     printWindow.document.close();
+}
+
+
+//ENAMOR STICKER
+
+
+async function downloadEnamorStickerPdf() {
+    if (!selectedPartyForPrint) return;
+    
+    const { jsPDF } = window.jspdf;
+    const layout = calculateStickerLayout(selectedPartyForPrint);
+    
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: [layout.widthInPoints, layout.heightInPoints]
+    });
+    
+    // Calculate vertical positioning to center content
+    const availableHeight = layout.heightInPoints - layout.reservedBottomSpace - 30;
+    let totalContentLines = layout.nameLines + layout.cityLines;
+    
+    let startY;
+    if (totalContentLines <= 1) {
+        startY = (availableHeight / 2) + 15 + (layout.nameFontSize / 3);
+    } else if (totalContentLines <= 2) {
+        startY = (availableHeight / 2) + 15 - (layout.lineSpacing / 2);
+    } else {
+        startY = (availableHeight / 2) + 15 - layout.lineSpacing;
+    }
+    
+    // Set font
+    doc.setFont('helvetica', 'bold');
+    
+    // Name Line 1
+    doc.setFontSize(layout.nameFontSize);
+    doc.text(layout.line1, layout.widthInPoints / 2, startY, { align: 'center' });
+    
+    let currentY = startY;
+    
+    // Name Line 2
+    if (layout.line2) {
+        currentY += layout.nameFontSize + layout.lineSpacing;
+        doc.text(layout.line2, layout.widthInPoints / 2, currentY, { align: 'center' });
+    }
+    
+    // City and Parcel
+    if (selectedPartyForPrint.city) {
+        currentY += (layout.line2 ? layout.nameFontSize : layout.nameFontSize) + (layout.lineSpacing * 1.5);
+        doc.setFontSize(layout.cityFontSize);
+        doc.setFont('helvetica', 'normal');
+        
+        if (layout.layoutType === 'cityWithParcel' && layout.hasParcel) {
+            // City aligned left, parcel on right
+            const centerX = layout.widthInPoints / 2;
+            const cityWidth = doc.getTextWidth(selectedPartyForPrint.city);
+            const totalWidth = cityWidth + layout.parcelSize + 15;
+            const startX = centerX - (totalWidth / 2);
+            
+            // Draw city
+            doc.text(selectedPartyForPrint.city, startX, currentY);
+            
+            // Draw parcel circle
+            const parcelX = startX + cityWidth + 15 + (layout.parcelSize / 2);
+            const parcelY = currentY - (layout.parcelSize / 3);
+            
+            doc.setDrawColor(220, 53, 69); // Red border
+            doc.setLineWidth(3);
+            doc.circle(parcelX, parcelY, layout.parcelSize / 2, 'S');
+            
+            // Draw parcel text
+            doc.setTextColor(220, 53, 69);
+            doc.setFontSize(layout.parcelTextSize);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${layout.parcelNumber}P`, parcelX, parcelY + 2, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+        } else {
+            // Normal city placement
+            doc.text(selectedPartyForPrint.city, layout.widthInPoints / 2, currentY, { align: 'center' });
+        }
+    }
+    
+    // Parcel below city or name
+    if (layout.hasParcel && layout.parcelBelowCity) {
+        currentY += (selectedPartyForPrint.city ? layout.cityFontSize : 0) + (layout.lineSpacing * 0.8);
+        
+        const parcelX = layout.widthInPoints / 2;
+        const parcelY = currentY;
+        
+        doc.setDrawColor(220, 53, 69);
+        doc.setLineWidth(3);
+        doc.circle(parcelX, parcelY, layout.parcelSize / 2, 'S');
+        
+        doc.setTextColor(220, 53, 69);
+        doc.setFontSize(layout.parcelTextSize);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${layout.parcelNumber}P`, parcelX, parcelY + 2, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+    }
+    
+    // FROM section at bottom left
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('FROM: KAMBESHWAR AGENCIES - MAPUSA GOA (9422593814)', 
+             15, layout.heightInPoints - 12);
+    
+    // Save the PDF
+    doc.save(`enamor_sticker_${selectedPartyForPrint.name.replace(/\s+/g, '_')}.pdf`);
+}
+
+function generateEnamorStickerPreview(party) {
+    const previewContent = document.getElementById('printPreviewContent');
+    const layout = calculateStickerLayout(party);
+    
+    // Get Enamor additional info
+    const billNumber = enamorBillNumbers[party.id] || '';
+    const totalPcs = enamorTotalPcs[party.id] || '';
+    
+    let stickerHTML = `
+        <div class="sticker-design" style="
+            width: ${layout.widthInPoints}pt; 
+            height: ${layout.heightInPoints}pt; 
+            border: 1px dashed #ccc; 
+            position: relative; 
+            margin: 0 auto; 
+            background: white;
+            padding: 15pt 20pt ${layout.reservedBottomSpace}pt 20pt;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        ">
+            <!-- Logo Image - Center Background -->
+            <div style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 1;
+                width: 220pt;
+                height: 210pt;
+                overflow: hidden;
+            ">
+                <img src="https://i.ibb.co/jk4cRdJ6/Copilot-20250626-091649-removebg-preview.png" 
+                     alt="Company Logo" 
+                     style="
+                        width: 220pt; 
+                        height: 210pt; 
+                        opacity: 0.4; 
+                        display: block;
+                        object-fit: contain;
+                        object-position: center;
+                     " 
+                     onerror="this.style.display='none';" />
+            </div>
+            
+            <!-- Additional Info Button (only in preview) -->
+            <button onclick="openEnamorInfoModal()" style="
+                position: absolute;
+                top: 10pt;
+                right: 10pt;
+                background: #4a6baf;
+                color: white;
+                border: none;
+                padding: 5pt 10pt;
+                border-radius: 4pt;
+                font-size: 10pt;
+                cursor: pointer;
+                z-index: 10;
+            ">
+                Additional Info
+            </button>
+            
+            <!-- Bill Number and Total PCS in all 4 corners -->
+            ${billNumber ? `
+                <div style="position: absolute; top: 10pt; left: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${billNumber}</div>
+                <div style="position: absolute; top: 10pt; right: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${billNumber}</div>
+                <div style="position: absolute; bottom: ${layout.reservedBottomSpace + 10}pt; left: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${billNumber}</div>
+                <div style="position: absolute; bottom: ${layout.reservedBottomSpace + 10}pt; right: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${billNumber}</div>
+            ` : ''}
+            
+            ${totalPcs ? `
+                <div style="position: absolute; top: 25pt; left: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${totalPcs}</div>
+                <div style="position: absolute; top: 25pt; right: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${totalPcs}</div>
+                <div style="position: absolute; bottom: ${layout.reservedBottomSpace + 25}pt; left: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${totalPcs}</div>
+                <div style="position: absolute; bottom: ${layout.reservedBottomSpace + 25}pt; right: 10pt; font-size: 10pt; color: #333; opacity: 0.7; z-index: 2;">${totalPcs}</div>
+            ` : ''}
+            
+            <!-- Name Line 1 -->
+            <div style="
+                font-size: ${layout.nameFontSize}pt;
+                font-weight: bold;
+                text-align: center;
+                color: #333;
+                line-height: 1.1;
+                margin-bottom: ${layout.line2 ? layout.lineSpacing : (layout.cityLines > 0 ? layout.lineSpacing * 1.5 : 0)}pt;
+                word-wrap: break-word;
+                max-width: 100%;
+                z-index: 2;
+                position: relative;
+            ">${layout.line1}</div>
+            
+            <!-- Name Line 2 -->
+            ${layout.line2 ? `
+            <div style="
+                font-size: ${layout.nameFontSize}pt;
+                font-weight: bold;
+                text-align: center;
+                color: #333;
+                line-height: 1.1;
+                margin-bottom: ${layout.cityLines > 0 ? layout.lineSpacing * 1.5 : 0}pt;
+                word-wrap: break-word;
+                max-width: 100%;
+                z-index: 2;
+                position: relative;
+            ">${layout.line2}</div>` : ''}
+            
+            <!-- City and Parcel Container -->
+            ${party.city ? `
+            <div style="
+                display: flex;
+                align-items: center;
+                justify-content: ${layout.cityAlignLeft ? 'flex-start' : 'center'};
+                width: 100%;
+                margin-bottom: 0pt;
+                z-index: 2;
+                position: relative;
+                gap: 15pt;
+            ">
+                <!-- City -->
+                <div style="
+                    font-size: ${layout.cityFontSize}pt;
+                    text-align: center;
+                    color: #555;
+                    font-weight: 500;
+                    word-wrap: break-word;
+                    ${layout.cityAlignLeft ? 'flex-shrink: 0;' : 'max-width: 100%;'}
+                ">${party.city}</div>
+                
+                <!-- Parcel next to city -->
+                ${layout.hasParcel && layout.layoutType === 'cityWithParcel' ? `
+                <div style="
+                    width: ${layout.parcelSize}pt;
+                    height: ${layout.parcelSize}pt;
+                    background: transparent;
+                    border: 3pt solid #dc3545;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #dc3545;
+                    font-weight: bold;
+                    font-size: ${layout.parcelTextSize}pt;
+                    flex-shrink: 0;
+                ">${layout.parcelNumber}P</div>` : ''}
+            </div>` : ''}
+            
+            <!-- Parcel below city or name -->
+            ${layout.hasParcel && (layout.parcelBelowCity || !party.city) ? `
+            <div style="
+                width: ${layout.parcelSize}pt;
+                height: ${layout.parcelSize}pt;
+                background: transparent;
+                border: 3pt solid #dc3545;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #dc3545;
+                font-weight: bold;
+                font-size: ${layout.parcelTextSize}pt;
+                z-index: 2;
+                position: relative;
+                margin-top: ${layout.lineSpacing * 0.3}pt;
+            ">${layout.parcelNumber}P</div>` : ''}
+            
+            <!-- FROM section at bottom left -->
+            <div style="
+                font-size: 9pt;
+                position: absolute;
+                bottom: 12pt;
+                left: 15pt;
+                font-weight: 500;
+                color: #666;
+                z-index: 2;
+            ">
+                FROM: KAMBESHWAR AGENCIES - MAPUSA GOA (9422593814)
+            </div>
+        </div>
+    `;
+    
+    previewContent.innerHTML = stickerHTML;
+}
+
+
+function printEnamorSticker() {
+    if (!selectedPartyForPrint) return;
+
+    const layout = calculateStickerLayout(selectedPartyForPrint);
+    
+    // Get Enamor additional info
+    const billNumber = enamorBillNumbers[selectedPartyForPrint.id] || '';
+    const totalPcs = enamorTotalPcs[selectedPartyForPrint.id] || '';
+
+    const A4_LANDSCAPE_HEIGHT = 595.28; // A4 Landscape height in pt
+    const STICKER_HEIGHT = layout.heightInPoints;
+    const TOP_OFFSET = (A4_LANDSCAPE_HEIGHT - layout.heightInPoints) / 2 - 14.17;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Print Sticker - ${selectedPartyForPrint.name}</title>
+            <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 0;
+                }
+
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    height: 100%;
+                    width: 100%;
+                    font-family: 'Arial', sans-serif;
+                    overflow: hidden;
+                    position: relative;
+                }
+
+                .sticker-wrapper {
+                    position: absolute;
+                    top: ${TOP_OFFSET}pt;
+                    left: 530pt;
+                    width: ${layout.widthInPoints}pt;
+                    height: ${layout.heightInPoints}pt;
+                }
+
+                .sticker-design {
+                    width: ${layout.widthInPoints}pt;
+                    height: ${layout.heightInPoints}pt;
+                    position: relative;
+                    background: white;
+                    padding: 15pt 20pt ${layout.reservedBottomSpace}pt 20pt;
+                    box-sizing: border-box;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    overflow: hidden;
+                }
+
+                .logo-container {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 1;
+                    width: 220pt;
+                    height: 210pt;
+                    overflow: hidden;
+                }
+
+                .logo-img {
+                margin-top: -20pt;
+                    width: 220pt;
+                    height: 260pt;
+                    opacity: 0.4;
+                    display: block;
+                    object-fit: contain;
+                    object-position: center;
+                }
+
+                .from-text {
+                    font-size: 9pt;
+                    position: absolute;
+                    bottom: 12pt;
+                    left: 20pt;
+                    font-weight: 500;
+                    color: #666;
+                    z-index: 2;
+                }
+
+                .city-parcel-container {
+                    display: flex;
+                    align-items: center;
+                    justify-content: ${layout.cityAlignLeft ? 'center' : 'center'};
+                    width: 100%;
+                    gap: 15pt;
+                    z-index: 2;
+                    position: relative;
+                }
+
+                .parcel-circle {
+                    width: ${layout.parcelSize}pt;
+                    height: ${layout.parcelSize}pt;
+                    background: transparent;
+                    border: 3pt solid #dc3545;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #dc3545;
+                    font-weight: bold;
+                    font-size: ${layout.parcelTextSize}pt;
+                    flex-shrink: 0;
+                }
+                
+                .enamor-info {
+                    position: absolute;
+                    font-size: 10pt;
+                    color: #333;
+                    opacity: 0.7;
+                    z-index: 2;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="sticker-wrapper">
+                <div class="sticker-design">
+                    <div class="logo-container">
+                        <img src="https://i.ibb.co/jk4cRdJ6/Copilot-20250626-091649-removebg-preview.png"
+                             alt="Company Logo"
+                             class="logo-img"
+                             onerror="this.style.display='none';" />
+                    </div>
+                    
+                    ${billNumber ? `
+                        <div class="enamor-info" style="top: 10pt; left: 10pt;">${billNumber}</div>
+                        <div class="enamor-info" style="top: 10pt; right: 10pt;">${billNumber}</div>
+                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 10}pt; left: 10pt;">${billNumber}</div>
+                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 10}pt; right: 10pt;">${billNumber}</div>
+                    ` : ''}
+                    
+                    ${totalPcs ? `
+                        <div class="enamor-info" style="top: 25pt; left: 10pt;">${totalPcs}</div>
+                        <div class="enamor-info" style="top: 25pt; right: 10pt;">${totalPcs}</div>
+                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 25}pt; left: 10pt;">${totalPcs}</div>
+                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 25}pt; right: 10pt;">${totalPcs}</div>
+                    ` : ''}
+
+                    <div style="
+                        font-size: ${layout.nameFontSize}pt;
+                        font-weight: bold;
+                        text-align: center;
+                        color: #333;
+                        line-height: 1;
+                        margin-bottom: ${layout.line2 ? layout.lineSpacing : (layout.cityLines > 0 ? layout.lineSpacing * 1.5 : 0)}pt;
+                        word-wrap: break-word;
+                        max-width: 100%;
+                        z-index: 2;
+                        position: relative;
+                    ">${layout.line1}</div>
+
+                    ${layout.line2 ? `
+                    <div style="
+                        font-size: ${layout.nameFontSize}pt;
+                        font-weight: bold;
+                        text-align: center;
+                        color: #333;
+                        line-height: 1;
+                        margin-bottom: ${layout.cityLines > 0 ? layout.lineSpacing * 1.5 : 0}pt;
+                        word-wrap: break-word;
+                        max-width: 100%;
+                        z-index: 2;
+                        position: relative;
+                    ">${layout.line2}</div>` : ''}
+
+                    ${selectedPartyForPrint.city ? `
+                    <div class="city-parcel-container" style="margin-bottom: 0pt;">
+                        <div style="
+                            font-size: ${layout.cityFontSize}pt;
+                            text-align: center;
+                            color: #555;
+                            font-weight: 500;
+                            word-wrap: break-word;
+                            ${layout.cityAlignLeft ? 'flex-shrink: 0;' : 'max-width: 100%;'}
+                        ">${selectedPartyForPrint.city}</div>
+                        
+                        ${layout.hasParcel && layout.layoutType === 'cityWithParcel' ? `
+                        <div class="parcel-circle">${layout.parcelNumber}P</div>` : ''}
+                    </div>` : ''}
+
+                    ${layout.hasParcel && layout.parcelBelowCity ? `
+                    <div class="parcel-circle" style="margin-top: ${layout.lineSpacing * 0.3}pt;">${layout.parcelNumber}P</div>` : ''}
+
+                    <div class="from-text">
+                        FROM: KAMBESHWAR AGENCIES - MAPUSA GOA (9422593814)
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                window.onload = function () {
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                };
+
+                window.onafterprint = function () {
+                    window.close();
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function createParcelModal() {
+    const modalHTML = `
+        <div id="parcelModal" class="parcel-modal">
+            <div class="parcel-modal-content">
+                <div class="parcel-modal-header">
+                    <h2 class="parcel-modal-title">
+                        📦 Set Number of Parcels
+                    </h2>
+                </div>
+                <div class="parcel-modal-body">
+                    <div class="parcel-party-name" id="parcelPartyName">
+                        Party Name Will Appear Here
+                    </div>
+                    <div class="parcel-input-group">
+                        <label class="parcel-input-label">Number of Parcels</label>
+                        <input type="number" id="parcelNumberInput" class="parcel-number-input" 
+                               min="0" max="20" value="0" placeholder="0">
+                        <div class="parcel-input-hint">Enter 0-20 parcels (0 = no parcel display)</div>
+                    </div>
+                </div>
+                <div class="parcel-modal-footer">
+                    <button class="parcel-btn parcel-btn-save" onclick="saveParcelNumber()">
+                        💾 Save
+                    </button>
+                    <button class="parcel-btn parcel-btn-cancel" onclick="closeParcelModal()">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Additional Info Modal for Enamor Stickers -->
+        <div id="enamorInfoModal" class="enamor-info-modal">
+            <div class="enamor-info-modal-content">
+                <div class="enamor-info-modal-header">
+                    <h2>📝 Additional Information (Enamor)</h2>
+                </div>
+                <div class="enamor-info-modal-body">
+                    <div class="enamor-party-name" id="enamorPartyName">
+                        Party Name Will Appear Here
+                    </div>
+                    
+                    <div class="enamor-input-group">
+                        <label>Bill Number (without K)</label>
+                        <input type="text" id="enamorBillNumber" class="enamor-input" placeholder="Enter bill number">
+                    </div>
+                    
+                    <div class="enamor-input-group">
+                        <label>Total Pieces</label>
+                        <input type="number" id="enamorTotalPcs" class="enamor-input" placeholder="Enter total pieces" min="1">
+                    </div>
+                </div>
+                <div class="enamor-info-modal-footer">
+                    <button class="enamor-btn enamor-btn-save" onclick="saveEnamorInfo()">
+                        💾 Save
+                    </button>
+                    <button class="enamor-btn enamor-btn-cancel" onclick="closeEnamorInfoModal()">
+                        ❌ Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modals to body if they don't exist
+    if (!document.getElementById('parcelModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
 }
