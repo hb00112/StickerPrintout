@@ -69,10 +69,25 @@ function openEnamorInfoModal() {
     if (modal && partyNameEl && billInputEl && pcsInputEl) {
         partyNameEl.textContent = `${selectedPartyForPrint.name} - ${selectedPartyForPrint.city}`;
         
-        // Set current values
-        billInputEl.value = enamorBillNumbers[selectedPartyForPrint.id] ? 
-            enamorBillNumbers[selectedPartyForPrint.id].replace('K', '') : '';
-        pcsInputEl.value = enamorTotalPcs[selectedPartyForPrint.id] || '';
+        // Set current values with reverse formatting
+        if (enamorBillNumbers[selectedPartyForPrint.id]) {
+            // Remove "K" prefixes and any extra spaces for editing
+            const billValue = enamorBillNumbers[selectedPartyForPrint.id]
+                .replace(/K/g, '')
+                .replace(/, /g, ',');
+            billInputEl.value = billValue;
+        } else {
+            billInputEl.value = '';
+        }
+        
+        if (enamorTotalPcs[selectedPartyForPrint.id]) {
+            // Remove parentheses and "PCS" for editing
+            const pcsValue = enamorTotalPcs[selectedPartyForPrint.id]
+                .replace(/\(|\)|PCS/g, '');
+            pcsInputEl.value = pcsValue;
+        } else {
+            pcsInputEl.value = '';
+        }
         
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('show'), 10);
@@ -103,14 +118,19 @@ function saveEnamorInfo() {
     
     // Update bill number (empty string will remove it)
     if (billNumber) {
-        enamorBillNumbers[selectedPartyForPrint.id] = 'K' + billNumber;
+        // Format bill numbers with "K" prefix for each comma-separated value
+        const formattedBillNumbers = billNumber.split(',')
+            .map(num => 'K' + num.trim())
+            .join(', ');
+        enamorBillNumbers[selectedPartyForPrint.id] = formattedBillNumbers;
     } else {
         delete enamorBillNumbers[selectedPartyForPrint.id];
     }
     
     // Update total pieces (empty string will remove it)
     if (totalPcs) {
-        enamorTotalPcs[selectedPartyForPrint.id] = totalPcs + 'PCS';
+        // Add "PCS" suffix to the total pieces
+        enamorTotalPcs[selectedPartyForPrint.id] = `(${totalPcs})PCS`;
     } else {
         delete enamorTotalPcs[selectedPartyForPrint.id];
     }
