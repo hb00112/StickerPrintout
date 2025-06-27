@@ -2954,33 +2954,33 @@ function printEnamorSticker() {
                              onerror="this.style.display='none';" />
                     </div>
                     
-                    ${billNumber ? `
-                        <!-- Left Top - Shifted 1cm (28.35pt) to right -->
-                        <div class="enamor-info" style="top: 10pt; left: ${28.35}pt;">${billNumber}</div>
-                        
-                        <!-- Right Top - Shifted 1cm (28.35pt) down -->
-                        <div class="enamor-info" style="top: ${10 + 28.35}pt; right: 10pt;">${billNumber}</div>
-                        
-                        <!-- Left Bottom - Shifted 1cm (28.35pt) to right -->
-                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 10}pt; left: ${28.35}pt;">${billNumber}</div>
-                        
-                        <!-- Right Bottom - Shifted 1cm (28.35pt) up -->
-                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 10 - 28.35}pt; right: 10pt;">${billNumber}</div>
-                    ` : ''}
-                    
-                    ${totalPcs ? `
-                        <!-- Left Top PCS - Shifted 1cm (28.35pt) to right -->
-                        <div class="enamor-info" style="top: 25pt; left: ${28.35}pt;">${totalPcs}</div>
-                        
-                        <!-- Right Top PCS - Shifted 1cm (28.35pt) down -->
-                        <div class="enamor-info" style="top: ${25 + 28.35}pt; right: 10pt;">${totalPcs}</div>
-                        
-                        <!-- Left Bottom PCS - Shifted 1cm (28.35pt) to right -->
-                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 25}pt; left: ${28.35}pt;">${totalPcs}</div>
-                        
-                        <!-- Right Bottom PCS - Shifted 1cm (28.35pt) up -->
-                        <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 25 - 28.35}pt; right: 10pt;">${totalPcs}</div>
-                    ` : ''}
+                  ${billNumber ? `
+    <!-- Left Top - Shifted 1cm (28.35pt) down and 1cm (28.35pt) to right -->
+    <div class="enamor-info" style="top: ${10 + 28.35}pt; left: ${28.35}pt;">${billNumber}</div>
+    
+    <!-- Right Top - Shifted 1cm (28.35pt) down -->
+    <div class="enamor-info" style="top: ${10 + 28.35}pt; right: 10pt;">${billNumber}</div>
+    
+    <!-- Left Bottom - Shifted 1cm (28.35pt) to right -->
+    <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 10}pt; left: ${28.35}pt;">${billNumber}</div>
+    
+    <!-- Right Bottom - Shifted 1cm (28.35pt) up + additional 1cm up -->
+    <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 10 - 28.35 + 28.35}pt; right: 10pt;">${billNumber}</div>
+` : ''}
+
+${totalPcs ? `
+    <!-- Left Top PCS - Shifted 1cm (28.35pt) down and 1cm (28.35pt) to right -->
+    <div class="enamor-info" style="top: ${25 + 28.35}pt; left: ${28.35}pt;">${totalPcs}</div>
+    
+    <!-- Right Top PCS - Shifted 1cm (28.35pt) down -->
+    <div class="enamor-info" style="top: ${25 + 28.35}pt; right: 10pt;">${totalPcs}</div>
+    
+    <!-- Left Bottom PCS - Shifted 1cm (28.35pt) to right -->
+    <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 25}pt; left: ${28.35}pt;">${totalPcs}</div>
+    
+    <!-- Right Bottom PCS - Shifted 1cm (28.35pt) up + additional 1cm up -->
+    <div class="enamor-info" style="bottom: ${layout.reservedBottomSpace + 25 - 28.35 + 28.35}pt; right: 10pt;">${totalPcs}</div>
+` : ''}
 
                     <div style="
                         font-size: ${layout.nameFontSize}pt;
